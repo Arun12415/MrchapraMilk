@@ -422,22 +422,35 @@
     </footer>
 
     <script>
-        const API_URL = "https://28dxhj8hwk.execute-api.ap-south-1.amazonaws.com/prod/subscribe"; // Yahan apna URL daalein
+        <script>
+        // 1. Aapka URL (Check karein ki AWS mein yehi ID hai na?)
+        const API_URL = "https://28dxhj8hwk.execute-api.ap-south-1.amazonaws.com/prod/subscribe";
 
         async function handleSubscription(event) {
             event.preventDefault();
             
+            // Button ko loading state mein daalne ke liye
+            const submitBtn = event.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerText;
+            submitBtn.innerText = "Processing...";
+            submitBtn.disabled = true;
+
+            // 2. Data nikalne ka sahi tarika (IDs use karke)
+            // Note: Form ke inputs mein id="fullName", id="phoneNumber" hona chahiye
             const formData = {
-                fullName: event.target[0].value,
-                phoneNumber: event.target[1].value,
-                milkType: event.target[2].value,
-                address: event.target[3].value
+                fullName: event.target.querySelector('input[type="text"]').value,
+                phoneNumber: event.target.querySelector('input[type="tel"]').value,
+                milkType: event.target.querySelector('select').value,
+                address: event.target.querySelector('textarea').value
             };
 
             try {
                 const response = await fetch(API_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    mode: 'cors', // Mandatory for AWS API Gateway
+                    headers: { 
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify(formData)
                 });
 
@@ -445,22 +458,29 @@
                     alert("Mubarak ho! Subscription confirm ho gaya hai.");
                     event.target.reset();
                 } else {
-                    alert("Opps! Kuch galti hui hai.");
+                    const errorData = await response.json();
+                    console.error("Server Error:", errorData);
+                    alert("Opps! Server mein kuch galti hui hai.");
                 }
             } catch (error) {
-                console.error("Error:", error);
-                alert("Network error. Please try again.");
+                console.error("Network Error Detail:", error);
+                alert("Network error: Kripya check karein ki API Deploy ho chuki hai aur CORS enabled hai.");
+            } finally {
+                // Button ko wapas normal karein
+                submitBtn.innerText = originalText;
+                submitBtn.disabled = false;
             }
+        }
+
+        // Mobile Menu Toggle (Jo aapne manga tha)
+        const mobileBtn = document.getElementById('mobile-menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+
+        if (mobileBtn && mobileMenu) {
+            mobileBtn.addEventListener('click', () => {
+                mobileMenu.classList.toggle('hidden');
+            });
         }
     </script>
 
-    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
-        // Mobile Menu Toggle
-        const btn = document.getElementById('mobile-menu-btn');
-        const menu = document.getElementById('mobile-menu');
-
-        btn.addEventListener('click', () => {
-            menu.classList.toggle('hidden');
-        });
-
-        // Close mob
+    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
