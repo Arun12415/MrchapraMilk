@@ -61,7 +61,7 @@ exports.handler = async (event) => {
                 "Access-Control-Allow-Origin": "*",
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify({ message: "Subscription Saved Successfully" })
+            body: JSON.stringify({ message: "Subscription Saved Successfully and Thank You" })
         };
 
     } catch (error) {
