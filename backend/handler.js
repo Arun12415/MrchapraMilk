@@ -2,59 +2,76 @@ const AWS = require('aws-sdk');
 const dynamo = new AWS.DynamoDB.DocumentClient();
 
 exports.handler = async (event) => {
-    // 1. Sabse pehle Headers define karein (Ye CORS issue fix karega)
-    const headers = {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, X-Amz-Date, Authorization, X-Api-Key, X-Amz-Security-Token"
-    };
 
-    // 2. Preflight request check (Browser pehle ye bhejta hai)
+    // CORS preflight
     if (event.httpMethod === 'OPTIONS') {
-        return { statusCode: 200, headers, body: '' };
+        return {
+            statusCode: 200,
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "POST, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type"
+            },
+            body: ''
+        };
     }
 
     try {
-        // 3. Frontend se aaya data parse karein
-        const body = JSON.parse(event.body);
-        
-        // Dhyan dein: Frontend mein hum fullName, phoneNumber use kar rahe hain
-        const { fullName, phoneNumber, milkType, address } = body;
+        // ✅ FIX 1: Body parse karo safely
+        const body = event.body ? JSON.parse(event.body) : {};
 
-        // 4. DynamoDB mein save karne ka saaman
+        // ✅ FIX 2: Debug log (CloudWatch me dikhega)
+        console.log("Incoming body:", JSON.stringify(body));
+
+        const { name, phone, milkType, address } = body;
+
+        // ✅ FIX 3: Validation - required fields check
+        if (!phone || !name) {
+            console.log("Validation failed - missing phone or name");
+            return {
+                statusCode: 400,
+                headers: { "Access-Control-Allow-Origin": "*" },
+                body: JSON.stringify({ error: "Name and Phone are required" })
+            };
+        }
+
         const params = {
             TableName: "MrChapraSubscriptions",
             Item: {
-                PhoneNumber: phoneNumber || "No-Phone", 
-                CustomerName: fullName || "Anonymous",
-                Product: milkType || "Not-Selected",
-                DeliveryAddress: address || "No-Address",
+                PhoneNumber: phone,           // Primary Key
+                CustomerName: name,
+                Product: milkType || "Not specified",
+                DeliveryAddress: address || "Not provided",
                 SubscriptionDate: new Date().toISOString(),
-                Status: "ACTIVE"
+                Status: "PENDING_CONFIRMATION"
             }
         };
 
+        // ✅ FIX 4: Log before insert
+        console.log("Inserting into DynamoDB:", JSON.stringify(params.Item));
+
         await dynamo.put(params).promise();
 
-        // 5. Success Response
+        // ✅ FIX 5: Log after success
+        console.log("Successfully inserted into DynamoDB");
+
         return {
             statusCode: 200,
-            headers: headers,
-            body: JSON.stringify({ 
-                message: "Mubarak ho! Mr Chapra Milk ki subscription confirm ho gayi.",
-                id: phoneNumber 
-            })
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ message: "Subscription Saved Successfully" })
         };
 
     } catch (error) {
-        console.error("Database Error:", error);
+        // ✅ FIX 6: Full error log
+        console.error("DynamoDB Error:", error.message, error.stack);
+
         return {
             statusCode: 500,
-            headers: headers,
-            body: JSON.stringify({ 
-                message: "Backend Error", 
-                details: error.message 
-            })
+            headers: { "Access-Control-Allow-Origin": "*" },
+            body: JSON.stringify({ error: error.message })
         };
     }
 };
